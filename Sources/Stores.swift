@@ -6,6 +6,7 @@ import MediaPlayer
 final class SessionStore: ObservableObject {
     @Published var isAuthenticated = false
     @Published var error: String?
+    @Published var isLiked = false
     init() { if let token = SecureStore.read() { isAuthenticated = true; Task { await ZvukAPI.shared.configure(token: token) } } }
     func signIn(token: String) async { error = nil; do { try await ZvukAPI.shared.verifyToken(token); SecureStore.save(token); isAuthenticated = true } catch { self.error = error.localizedDescription } }
     func signOut() { SecureStore.delete(); isAuthenticated = false; Task { await ZvukAPI.shared.configure(token: nil) } }
@@ -44,7 +45,7 @@ final class PlayerStore: NSObject, ObservableObject {
             let url = try await ZvukAPI.shared.streamURL(for: track.id)
             if let timeObserver { player?.removeTimeObserver(timeObserver) }
             let newPlayer = AVPlayer(url: url)
-            player = newPlayer; current = track; progress = 0; duration = Double(track.duration ?? 0)
+            player = newPlayer; current = track; isLiked = false; progress = 0; duration = Double(track.duration ?? 0)
             observeTime(for: newPlayer)
             newPlayer.play(); isPlaying = true; updateNowPlayingInfo()
         } catch { self.error = error.localizedDescription }
@@ -56,6 +57,12 @@ final class PlayerStore: NSObject, ObservableObject {
     func skip(by seconds: Double) { seek(min(max(progress + seconds, 0), duration)) }
     func next() async { guard !queue.isEmpty else { return }; queueIndex = (queueIndex + 1) % queue.count; await startCurrentTrack() }
     func previous() async { if progress > 3 { seek(0); return }; guard !queue.isEmpty else { return }; queueIndex = (queueIndex - 1 + queue.count) % queue.count; await startCurrentTrack() }
+    func toggleLike() async {
+        guard let current else { return }
+        let nextState = !isLiked
+        do { try await ZvukAPI.shared.toggleFavorite(trackID: current.id, add: nextState); isLiked = nextState }
+        catch { self.error = error.localizedDescription }
+    }
 
     private func configureAudioSession() {
         let session = AVAudioSession.sharedInstance()
