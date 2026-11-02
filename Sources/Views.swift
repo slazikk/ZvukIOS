@@ -95,5 +95,26 @@ struct MiniPlayer: View {
 }
 struct NowPlayingView: View {
     @EnvironmentObject private var player: PlayerStore; @Environment(\.dismiss) private var dismiss
-    var body: some View { ZStack { LinearGradient(colors: [.black, .purple.opacity(0.8)], startPoint: .top, endPoint: .bottom).ignoresSafeArea(); VStack(spacing: 28) { HStack { Button { dismiss() } label: { Image(systemName: "chevron.down").font(.title2) }; Spacer(); Text("Сейчас играет").font(.headline); Spacer(); Color.clear.frame(width: 24) }.padding(.top, 12); if let track = player.current { ArtworkView(url: track.artworkURL).frame(width: 300, height: 300); Text(track.title).font(.title2.bold()).multilineTextAlignment(.center); Text(track.artistText).foregroundStyle(.white.opacity(0.7)); Slider(value: Binding(get: { player.progress }, set: { player.progress = $0 }), in: 0...max(player.duration, 1), onEditingChanged: { if !$0 { player.seek(player.progress) } }); HStack(spacing: 35) { Button { Task { await player.previous() } } label: { Image(systemName: "backward.fill") }; Button { player.skip(by: -15) } label: { Image(systemName: "gobackward.15") }; Button { player.toggle() } label: { Image(systemName: player.isPlaying ? "pause.circle.fill" : "play.circle.fill").font(.system(size: 64)) }; Button { player.skip(by: 15) } label: { Image(systemName: "goforward.15") }; Button { Task { await player.next() } } label: { Image(systemName: "forward.fill") } } } else { ContentUnavailableView("Ничего не играет", systemImage: "music.note") }; Spacer() }.foregroundStyle(.white).padding(.horizontal, 24) } .statusBarHidden(true) }
+    var body: some View {
+        GeometryReader { proxy in
+            ZStack {
+                LinearGradient(colors: [.black, .purple.opacity(0.88)], startPoint: .top, endPoint: .bottom).ignoresSafeArea()
+                VStack(spacing: 0) {
+                    HStack { Button { dismiss() } label: { Image(systemName: "chevron.down").font(.title2) }; Spacer(); Text("Сейчас играет").font(.headline); Spacer(); Button { Task { await player.toggleLike() } } label: { Image(systemName: player.isLiked ? "heart.fill" : "heart").font(.title2).foregroundStyle(player.isLiked ? .red : .white) } }.padding(.top, 10)
+                    Spacer(minLength: 12)
+                    if let track = player.current {
+                        ArtworkView(url: track.artworkURL).frame(width: min(proxy.size.width - 48, 310), height: min(proxy.size.width - 48, 310))
+                        Spacer(minLength: 18)
+                        Text(track.title).font(.title2.bold()).multilineTextAlignment(.center).lineLimit(2)
+                        Text(track.artistText).foregroundStyle(.white.opacity(0.7)).lineLimit(1).padding(.top, 6)
+                        Spacer(minLength: 20)
+                        Slider(value: Binding(get: { player.progress }, set: { player.progress = $0 }), in: 0...max(player.duration, 1), onEditingChanged: { if !$0 { player.seek(player.progress) } })
+                        Spacer(minLength: 22)
+                        HStack { Button { Task { await player.previous() } } label: { Image(systemName: "backward.fill").font(.title) }; Spacer(); Button { player.toggle() } label: { Image(systemName: player.isPlaying ? "pause.circle.fill" : "play.circle.fill").font(.system(size: 70)) }; Spacer(); Button { Task { await player.next() } } label: { Image(systemName: "forward.fill").font(.title) } }.padding(.horizontal, 42)
+                    } else { ContentUnavailableView("Ничего не играет", systemImage: "music.note") }
+                    Spacer(minLength: 16)
+                }.foregroundStyle(.white).padding(.horizontal, 24).padding(.bottom, 20)
+            }
+        }.statusBarHidden(true)
+    }
 }
