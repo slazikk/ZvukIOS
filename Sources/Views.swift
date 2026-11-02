@@ -38,6 +38,7 @@ struct FlowView: View {
                 Text("Твоя персональная музыка\nпрямо сейчас").font(.title3.weight(.medium)).foregroundStyle(.white.opacity(0.8))
                 Button { Task { await start() } } label: { Label(loading ? "Собираем поток…" : "Запустить поток", systemImage: "play.fill").font(.headline).frame(maxWidth: .infinity).padding(.vertical, 17) }.buttonStyle(.borderedProminent).tint(.white).foregroundStyle(.black).disabled(loading)
                 if let error { Text(error).font(.footnote).padding().background(.red.opacity(0.35), in: RoundedRectangle(cornerRadius: 14)) }
+                if let playerError = player.error { Text(playerError).font(.footnote).padding().background(.red.opacity(0.35), in: RoundedRectangle(cornerRadius: 14)) }
                 Text("В вашем потоке").font(.headline).opacity(tracks.isEmpty ? 0 : 1)
                 ForEach(Array(tracks.enumerated()), id: \.element.id) { index, track in FlowTrackRow(index: index + 1, track: track, tracks: tracks) }
             }.foregroundStyle(.white).padding(.horizontal, 20).padding(.top, 30).padding(.bottom, 115) }
@@ -66,7 +67,26 @@ private struct SearchResultButton: View {
 }
 struct SearchRow: View { let item: SearchItem; var body: some View { HStack(spacing: 12) { ArtworkView(url: artwork).frame(width: 54, height: 54); VStack(alignment: .leading) { Text(item.title).lineLimit(1); Text(item.subtitle).font(.subheadline).foregroundStyle(.secondary).lineLimit(1) }; Spacer() } }; private var artwork: URL? { switch item { case .track(let x): x.artworkURL; case .artist(let x): x.image?.src.flatMap(URL.init(string:)); case .release(let x): x.image?.src.flatMap(URL.init(string:)); case .playlist(let x): x.image?.src.flatMap(URL.init(string:)) } } }
 struct ArtworkView: View { let url: URL?; var body: some View { AsyncImage(url: url) { $0.resizable().scaledToFill() } placeholder: { Image(systemName: "music.note").frame(maxWidth: .infinity, maxHeight: .infinity).background(.quaternary) }.clipShape(RoundedRectangle(cornerRadius: 8)) } }
-struct LibraryView: View { var body: some View { NavigationStack { ContentUnavailableView("Медиатека", systemImage: "heart.text.square", description: Text("Запускайте треки из поиска или Потока.")) .navigationTitle("Медиатека") } } }
+struct LibraryView: View {
+    @EnvironmentObject private var player: PlayerStore
+    @State private var tracks = [Track]()
+    @State private var loading = false
+    @State private var error: String?
+    var body: some View {
+        NavigationStack { List {
+            if loading { ProgressView().frame(maxWidth: .infinity) }
+            if let error { Text(error).foregroundStyle(.red) }
+            if tracks.isEmpty && !loading && error == nil { ContentUnavailableView("В медиатеке пока нет треков", systemImage: "heart") }
+            ForEach(tracks) { track in LibraryTrackRow(track: track, tracks: tracks) }
+        }.navigationTitle("Медиатека").refreshable { await load() }.task { await load() } }
+    }
+    private func load() async { loading = true; error = nil; do { tracks = try await ZvukAPI.shared.libraryTracks() } catch { self.error = error.localizedDescription }; loading = false }
+}
+private struct LibraryTrackRow: View {
+    @EnvironmentObject private var player: PlayerStore
+    let track: Track; let tracks: [Track]
+    var body: some View { Button { Task { await player.play(track, in: tracks) } } label: { SearchRow(item: .track(track)) }.buttonStyle(.plain) }
+}
 struct SettingsView: View { @EnvironmentObject private var session: SessionStore; var body: some View { NavigationStack { Form { Button("Выйти", role: .destructive) { session.signOut() } }.navigationTitle("Настройки") } } }
 
 struct MiniPlayer: View {
