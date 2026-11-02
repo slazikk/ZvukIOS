@@ -13,6 +13,7 @@ struct ZvukMusicIOSApp: App {
             .environmentObject(session)
             .environmentObject(player)
             .tint(.orange)
+            .statusBarHidden(session.isAuthenticated)
         }
     }
 }
