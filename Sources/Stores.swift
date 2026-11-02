@@ -40,7 +40,7 @@ final class PlayerStore: NSObject, ObservableObject {
         let track = queue[queueIndex]
         error = nil
         do {
-            try configureAudioSession()
+            configureAudioSession()
             let url = try await ZvukAPI.shared.streamURL(for: track.id)
             if let timeObserver { player?.removeTimeObserver(timeObserver) }
             let newPlayer = AVPlayer(url: url)
@@ -51,16 +51,18 @@ final class PlayerStore: NSObject, ObservableObject {
     }
     func toggle() { isPlaying ? pause() : resume() }
     func pause() { player?.pause(); isPlaying = false; updateNowPlayingInfo() }
-    func resume() { guard player != nil else { return }; try? configureAudioSession(); player?.play(); isPlaying = true; updateNowPlayingInfo() }
+    func resume() { guard player != nil else { return }; configureAudioSession(); player?.play(); isPlaying = true; updateNowPlayingInfo() }
     func seek(_ value: Double) { player?.seek(to: CMTime(seconds: value, preferredTimescale: 600)); progress = value; updateNowPlayingInfo() }
     func skip(by seconds: Double) { seek(min(max(progress + seconds, 0), duration)) }
     func next() async { guard !queue.isEmpty else { return }; queueIndex = (queueIndex + 1) % queue.count; await startCurrentTrack() }
     func previous() async { if progress > 3 { seek(0); return }; guard !queue.isEmpty else { return }; queueIndex = (queueIndex - 1 + queue.count) % queue.count; await startCurrentTrack() }
 
-    private func configureAudioSession() throws {
+    private func configureAudioSession() {
         let session = AVAudioSession.sharedInstance()
-        try session.setCategory(.playback, mode: .default, options: [.allowAirPlay, .allowBluetoothA2DP])
-        try session.setActive(true)
+        // Некоторые sideload-конфигурации возвращают OSStatus -50 на Bluetooth/AirPlay options.
+        // Базовая playback-сессия совместима и с фоном, и с AVPlayer.
+        try? session.setCategory(.playback, mode: .default)
+        try? session.setActive(true)
     }
     private func observeTime(for newPlayer: AVPlayer) {
         timeObserver = newPlayer.addPeriodicTimeObserver(forInterval: CMTime(seconds: 0.5, preferredTimescale: 600), queue: .main) { [weak self] time in
