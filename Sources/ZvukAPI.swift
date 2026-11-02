@@ -79,7 +79,8 @@ actor ZvukAPI {
         let data = try await request(query, operation: "getStream", variables: ["ids": [trackID]])
         let rows = data["mediaContents"] as? [[String: Any]] ?? []
         let stream = rows.first?["stream"] as? [String: Any]
-        for key in ["flac", "high", "mid"] { if let value = stream?[key] as? String, let url = URL(string: value) { return url } }
+        // По умолчанию iOS надёжнее играет MP3 High/Mid; FLAC может быть DRM-вариантом.
+        for key in ["high", "mid", "flac"] { if let value = stream?[key] as? String, let url = URL(string: value) { return url } }
         throw APIError.graphql("Для трека нет доступного потока")
     }
 
