@@ -1,0 +1,15 @@
+name: ZvukMusicIOS
+options:
+  bundleIdPrefix: com.yourcompany
+targets:
+  ZvukMusicIOS:
+    type: application
+    platform: iOS
+    deploymentTarget: "17.0"
+    sources: [Sources]
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: com.yourcompany.zvukmusic
+        INFOPLIST_FILE: Sources/Info.plist
+        SWIFT_VERSION: "5.0"
+        TARGETED_DEVICE_FAMILY: "1"

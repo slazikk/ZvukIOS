@@ -1,0 +1,35 @@
+name: Build unsigned IPA
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+
+jobs:
+  build:
+    runs-on: macos-15
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install XcodeGen
+        run: brew install xcodegen
+      - name: Generate Xcode project
+        run: xcodegen generate
+      - name: Build device app without signing
+        run: >-
+          xcodebuild -project ZvukMusicIOS.xcodeproj -scheme ZvukMusicIOS
+          -configuration Release -sdk iphoneos -derivedDataPath build
+          CODE_SIGNING_ALLOWED=NO CODE_SIGNING_REQUIRED=NO CODE_SIGN_IDENTITY=""
+          build
+      - name: Package IPA
+        run: |
+          mkdir -p Payload
+          cp -R build/Build/Products/Release-iphoneos/ZvukMusicIOS.app Payload/
+          ditto -c -k --sequesterRsrc --keepParent Payload ZvukMusicIOS-unsigned.ipa
+      - name: Upload IPA
+        uses: actions/upload-artifact@v4
+        with:
+          name: ZvukMusicIOS-unsigned-ipa
+          path: ZvukMusicIOS-unsigned.ipa
+          if-no-files-found: error
